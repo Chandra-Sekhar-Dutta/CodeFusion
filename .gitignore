@@ -11,6 +11,11 @@ node_modules/
 .env
 .env.local
 .env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+Code_Editor_Client/.env
+Code_Editor_Server/.env
 
 # Build output
 dist/
