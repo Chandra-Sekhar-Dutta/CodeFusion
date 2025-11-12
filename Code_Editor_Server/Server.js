@@ -1,10 +1,15 @@
 import Actions from "./Action.js";
-import express from 'express';
+import express from "express";
 const app = express();
-import { createServer } from 'http';
+import { createServer } from "http";
 const server = createServer(app);
 import { Server } from "socket.io";
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
 
 const userSocketMap = {};
 
@@ -20,11 +25,8 @@ io.on("connection", (socket) => {
   console.log("Connected:", socket.id);
 
   socket.on(Actions.JOIN, ({ roomID, user, imageUrl }) => {
-    console.log(`${user} joined room ${roomID}`);
-
     userSocketMap[socket.id] = { user, imageUrl };
     socket.join(roomID);
-
     const clientsArray = getConnectedClientsInRoom(roomID);
 
     clientsArray.forEach(({ socketId }) => {
@@ -36,20 +38,25 @@ io.on("connection", (socket) => {
     });
   });
 
-  // disconnecting event before leaving the room
-  socket.on("disconnecting",()=>{
-    const roomsOfThatParticularSocket=[...socket.rooms]
-    roomsOfThatParticularSocket.forEach((roomID)=>{
-      socket.in(roomID).emit(Actions.DISCONNECTED,{
-        socketId:socket.id,
-        userName:userSocketMap[socket.id]?.user || "Unknown",
-      })
-    })
+  socket.on(Actions.CODE_CHANGE, ({ roomID, code }) => {
+    socket.in(roomID).emit(Actions.CODE_CHANGE, { code });
+  });
 
-    delete userSocketMap[socket.id]
-    // leave from all the rooms
-    socket.leave()
-  })
+  socket.on(Actions.SYNC_CODE, ({ code, socketId }) => {
+    io.to(socketId).emit(Actions.SYNC_CODE, { code });
+  });
+
+  socket.on("disconnecting", () => {
+    const rooms = [...socket.rooms];
+    rooms.forEach((roomID) => {
+      socket.in(roomID).emit(Actions.DISCONNECTED, {
+        socketId: socket.id,
+        userName: userSocketMap[socket.id]?.user || "Unknown",
+      });
+    });
+
+    delete userSocketMap[socket.id];
+  });
 });
 
-server.listen(3000, () => console.log("listening on :3000"));
+server.listen(3000, () => console.log("Server running on port 3000"));

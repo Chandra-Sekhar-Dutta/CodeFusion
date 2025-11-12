@@ -5,24 +5,20 @@ import Split from "react-split";
 import CodeEditor from "./CodeEditor.jsx";
 import Terminal from "./Terminal.jsx";
 
-const RightSideBar = () => {
-  const [code, setCode] = useState(`// Write your code here`);
+const RightSideBar = ({ socketRef, roomID, code, setCode }) => {
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const navigate = useNavigate();
 
-  // Ref used to trigger code execution
   const runTriggerRef = useRef(null);
 
   const handleRun = () => {
     setIsRunning(true);
     setOutput("Compiling and running...\n");
 
-    // Mark trigger for editor to pass current code
     runTriggerRef.current = (editorCode) => executeCode(editorCode);
 
     setTimeout(() => {
-      // Trigger editor’s useEffect to send the latest code
       setIsRunning(false);
     }, 300);
   };
@@ -35,7 +31,6 @@ const RightSideBar = () => {
         capturedOutput += args.join(" ") + "\n";
       };
 
-      // Evaluate the code safely
       // eslint-disable-next-line no-eval
       eval(finalCode);
       console.log = originalLog;
@@ -67,7 +62,6 @@ const RightSideBar = () => {
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden bg-[#0d1117]">
-      {/* Toolbar */}
       <motion.div
         className="flex items-center justify-between px-5 py-3 bg-[#161b22] border-b border-gray-700 flex-shrink-0"
         initial={{ y: -20, opacity: 0 }}
@@ -104,7 +98,6 @@ const RightSideBar = () => {
         </div>
       </motion.div>
 
-      {/* Editor + Terminal */}
       <Split
         className="flex-1 flex flex-col overflow-hidden"
         sizes={[65, 35]}
@@ -116,7 +109,13 @@ const RightSideBar = () => {
           height: "6px",
         })}
       >
-        <CodeEditor code={code} onRunTrigger={runTriggerRef.current} />
+        <CodeEditor
+          code={code}
+          setCode={setCode}
+          onRunTrigger={runTriggerRef.current}
+          socketRef={socketRef}
+          roomID={roomID}
+        />
         <Terminal output={output} onClear={handleClear} />
       </Split>
     </div>

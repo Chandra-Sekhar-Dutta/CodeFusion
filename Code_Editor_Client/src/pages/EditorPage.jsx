@@ -10,6 +10,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const EditorPage = () => {
+  const [code, setCode] = useState(`// Write your code here`);
   const { userName, roomID } = useUserContext();
   const { isLoaded, user } = useUser();
 
@@ -19,7 +20,10 @@ const EditorPage = () => {
 
   const handleError = (err) => {
     console.error("Socket connection error", err);
-    toast.error("Socket connection failed.", { position: "top-right", theme: "dark" });
+    toast.error("Socket connection failed.", {
+      position: "top-right",
+      theme: "dark",
+    });
   };
 
   useEffect(() => {
@@ -40,23 +44,48 @@ const EditorPage = () => {
         });
       });
 
-      socketRef.current.on(Actions.JOINED, ({ clientsArray, userName: joinedUser }) => {
-        if (joinedUser !== userName) toast.success(`${joinedUser} joined the room.`);
+      socketRef.current.on(Actions.JOINED, ({ clientsArray, userName: joinedUser, socketId }) => {
+        if (joinedUser !== userName)
+          toast.success(`${joinedUser} joined the room.`);
+
         setUsers(clientsArray);
+
+        // Send current code to the newly joined user
+        if (socketRef.current.id === socketId) return;
+        socketRef.current.emit(Actions.SYNC_CODE, {
+          code,
+          socketId,
+        });
       });
 
       socketRef.current.on(Actions.DISCONNECTED, ({ socketId, userName: leftUser }) => {
         toast.info(`${leftUser} left the room.`);
         setUsers((prev) => prev.filter((u) => u.socketId !== socketId));
       });
+
+      // Receive code changes
+      socketRef.current.on(Actions.CODE_CHANGE, ({ code: incomingCode }) => {
+        if (incomingCode !== null && incomingCode !== undefined) {
+          setCode(incomingCode);
+        }
+      });
+
+      // Receive sync code (full code sent to newly joined)
+      socketRef.current.on(Actions.SYNC_CODE, ({ code: syncedCode }) => {
+        if (syncedCode !== null && syncedCode !== undefined) {
+          setCode(syncedCode);
+        }
+      });
     };
 
     if (roomID) init();
 
     return () => {
+      socketRef.current?.disconnect();
       socketRef.current?.off(Actions.JOINED);
       socketRef.current?.off(Actions.DISCONNECTED);
-      socketRef.current?.disconnect();
+      socketRef.current?.off(Actions.CODE_CHANGE);
+      socketRef.current?.off(Actions.SYNC_CODE);
     };
   }, [roomID, userName]);
 
@@ -75,8 +104,18 @@ const EditorPage = () => {
             width: "6px",
           })}
         >
-          <LeftSideBar users={users} isLoaded={isLoaded} user={user} currentSocketId={currentSocketId} />
-          <RightSideBar />
+          <LeftSideBar
+            users={users}
+            isLoaded={isLoaded}
+            user={user}
+            currentSocketId={currentSocketId}
+          />
+          <RightSideBar
+            socketRef={socketRef}
+            roomID={roomID}
+            code={code}
+            setCode={setCode}
+          />
         </Split>
       </div>
       <ToastContainer />
