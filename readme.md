@@ -1,4 +1,4 @@
-# FusionCode 
+# CodeFusion 
 
 A real-time collaborative code editor built with React, Socket.IO, and modern web technologies. Write, share, and execute JavaScript code together in synchronized rooms.
 
